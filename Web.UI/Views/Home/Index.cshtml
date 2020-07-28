@@ -1,0 +1,133 @@
+﻿@model IEnumerable<Web.UI.Models.FileViewModel>
+@{
+    ViewData["Title"] = "Coding Challenge";
+}
+
+<div>
+    <div ng-app="myApp">
+        <div id="FileListScreen" ng-controller="FileListObj" data-ng-init="init(@JsonConvert.SerializeObject(Model))">
+            <div class="alert alert-info" ng-if="FilesUploaded.length==0">
+                <strong>Info!</strong> No files uploaded. Please upload a file to proceed any further.
+            </div>
+
+            <div class="custom-file">
+                <input type="file" class="custom-file-input" id="txtFile" accept="text/plain" select-ng-files ng-model="FilesToUpload" multiple>
+                <label class="custom-file-label" for="btnUpload">Choose file</label>
+            </div>
+
+            <h5 class="p-3 mt-3 bg-secondary text-white" ng-show="FilesToUpload.length > 0">Files to be Uploaded</h5>
+            <table class="table" ng-show="FilesToUpload.length > 0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Date</th>
+                        <th>Size</th>
+                        <th>Type</th>
+                    <tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="file in FilesToUpload">
+                        <td>{{file.name}}</td>
+                        <td>{{file.lastModified | date: 'dd-MMM-yyyy'}}</td>
+                        <td>{{file.size}}</td>
+                        <td>{{file.type}}</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4" class="text-right">
+                            <input type="button" class="btn-secondary text-white" value="Upload" ng-click="UploadFile()">
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <h5 class="p-3 mt-3 bg-primary text-white" ng-show="FilesUploaded.length > 0">Files Uploaded</h5>
+            <table class="table" ng-show="FilesUploaded.length > 0">
+                <thead>
+                    <tr>
+                        <th>File Name</th>
+                        <th>Validation Message</th>
+                        <th>Buy</th>
+                        <th>Sell</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="fl in FilesUploaded">
+                        <td>{{fl.originalFileName}}</td>
+                        <td>
+                            <i class="fa fa-check" style="color: green" aria-hidden="true" ng-show="fl.validationResult.isValid"></i>
+                            <i class="fa fa-times" style="color: red" aria-hidden="true" ng-show="!fl.validationResult.isValid"></i>
+                            {{fl.validationResult.message}}
+                        </td>
+                        <td ng-show="fl.validationResult.isValid">{{fl.buyDayAndPrice.day}} ({{fl.buyDayAndPrice.price | number: 2}})</td>
+                        <td ng-show="!fl.validationResult.isValid">--</td>
+                        <td ng-show="fl.validationResult.isValid">{{fl.sellDayAndPrice.day}} ({{fl.sellDayAndPrice.price | number: 2}})</td>
+                        <td ng-show="!fl.validationResult.isValid">--</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.6.9/angular.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+    function FileList($scope) {
+        $scope.FilesToUpload = [];
+        $scope.FilesUploaded = [];
+
+        $scope.init = function (files) {
+            $scope.FilesToUpload = [];
+            $scope.FilesUploaded = files;
+        }
+
+        $scope.UploadFile = function () {
+            if ($scope.FilesToUpload.length > 0) {
+                var formdata = new FormData(); //FormData object
+                for (i = 0; i < $scope.FilesToUpload.length; i++) {
+                    //Appending each file to FormData object
+                    formdata.append($scope.FilesToUpload[i].name, $scope.FilesToUpload[i]);
+                }
+
+                //Creating an XMLHttpRequest and sending
+                var xhr = new XMLHttpRequest();
+                xhr.open('POST', '/home/Upload');
+                xhr.send(formdata);
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState == 4 && xhr.status == 200) {
+                        if (!xhr.responseText.includes("Error")) {
+                            var FilesUploaded = JSON.parse(xhr.responseText);
+
+                            for (var i = 0; i < FilesUploaded.length; i++) {
+                                $scope.FilesUploaded.push(FilesUploaded[i]);
+                            }
+
+                            $scope.FilesToUpload = [];
+                            
+                            $scope.$apply();
+                        } else {
+                            alert(xhr.responseText);
+                        }
+                    }
+                }                
+            }
+        }
+    }
+
+    var myApp = angular.module("myApp", []);
+    angular.module("myApp").directive("selectNgFiles", function () {
+        return {
+            require: "ngModel",
+            link: function postLink(scope, elem, attrs, ngModel) {
+                elem.on("change", function (e) {
+                    var files = elem[0].files;
+                    ngModel.$setViewValue(files);
+                })
+            }
+        }
+    });
+    myApp.controller("FileListObj", FileList);
+</script>
